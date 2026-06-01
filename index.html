@@ -1,0 +1,1928 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>NEXFUEL — 자동 주유</title>
+
+<!-- ====== PWA ====== -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#000000">
+
+<!-- ====== iOS 홈화면 추가 지원 ====== -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="NEXFUEL">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="apple-touch-icon" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" sizes="512x512" href="icon-512.png">
+
+<!-- ====== 일반 favicon ====== -->
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+:root {
+  /* [v15] 테슬라 EV 앱 톤 - 순수 다크, 액센트 없음, 미니멀 */
+  --bg-page: #000000;        /* 페이지 배경: 순수 검정 */
+  --bg-card: #161618;        /* 카드: 살짝 밝은 검정 */
+  --bg-soft: #1a1a1c;        /* 부드러운 영역 */
+  --bg-input: #1f1f22;       /* 입력 필드 / 비활성 버튼 */
+
+  --text-1: #ffffff;         /* 메인 텍스트: 흰색 */
+  --text-2: #b8b8be;         /* 보조 텍스트: 밝은 회색 */
+  --text-3: #8a8a8e;         /* 흐린 텍스트 */
+  --text-4: #4a4a4e;         /* 매우 흐린 (placeholder 등) */
+
+  /* primary 는 테슬라 톤에서 흰색-on-검정 버튼이라 */
+  --primary: #ffffff;             /* 메인 강조 색 → 흰색 */
+  --primary-deep: #e8e8ec;        /* 흰 버튼 호버용 */
+  --primary-soft: #1a1a1c;        /* "soft" 영역도 그냥 카드톤 */
+  --primary-grad: linear-gradient(135deg, #ffffff 0%, #e8e8ec 100%);
+
+  --accent: #c8c8cc;
+  --accent-soft: #1f1f22;
+
+  --green: #34d399;
+  --green-soft: #0a1f18;
+
+  --warn: #fbbf24;
+  --warn-soft: #1f1808;
+
+  --danger: #f87171;
+  --danger-soft: #1f0a0a;
+
+  --border: #26262a;
+  --border-strong: #3a3a3e;
+
+  --shadow-xs: 0 1px 2px rgba(17, 24, 39, 0.04);
+  --shadow-sm: 0 2px 8px rgba(17, 24, 39, 0.05);
+  --shadow-md: 0 8px 24px rgba(17, 24, 39, 0.06);
+  --shadow-primary: 0 8px 24px rgba(255, 255, 255, 0.08);
+
+  --r-sm: 12px;
+  --r-md: 16px;
+  --r-lg: 20px;
+  --r-xl: 24px;
+
+  --font: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; -webkit-font-smoothing: antialiased; }
+html, body { width: 100%; height: 100%; min-height: 100vh; min-height: 100svh; min-height: 100dvh; background: #000; margin: 0; padding: 0; }
+body {
+  background: var(--bg-page);
+  color: var(--text-1);
+  font-family: var(--font);
+  min-height: 100vh;
+  min-height: 100svh;
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+.device {
+  width: 100%;
+  max-width: 480px;
+  min-height: 100vh;
+  min-height: 100svh;
+  min-height: 100dvh;
+  margin: 0 auto;
+  background: var(--bg-page);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ==== SPLASH ==== */
+.splash {
+  position: fixed; inset: 0; z-index: 100;
+  width: 100vw; height: 100vh; height: 100svh; height: 100dvh;
+  padding-bottom: env(safe-area-inset-bottom);
+  background: linear-gradient(160deg, #0a0a0a 0%, #1a1a1c 50%, #000 100%);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  transition: opacity 0.6s ease, transform 0.6s ease;
+  color: white;
+}
+.splash.gone { opacity: 0; transform: scale(1.05); pointer-events: none; }
+.splash::before {
+  content: ''; position: absolute; inset: 0;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(255,255,255,0.15) 0%, transparent 40%),
+    radial-gradient(circle at 80% 80%, rgba(255,255,255,0.1) 0%, transparent 40%);
+}
+.splash-mark {
+  width: 88px; height: 88px;
+  background: #1f1f22;
+  border-radius: 24px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06);
+  margin-bottom: 24px;
+  position: relative;
+}
+.splash-mark::after {
+  content: ''; position: absolute;
+  inset: -8px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-radius: 30px;
+  border-top-color: transparent;
+  animation: spinBorder 1.4s linear infinite;
+}
+.splash-mark svg { width: 44px; height: 44px; }
+@keyframes spinBorder { to { transform: rotate(360deg); } }
+.splash-name {
+  font-size: 28px; font-weight: 800;
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+  position: relative;
+}
+.splash-sub {
+  font-size: 14px; font-weight: 500;
+  opacity: 0.9;
+  margin-bottom: 60px;
+  position: relative;
+}
+.boot-bar {
+  width: 200px; height: 3px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+.boot-fill {
+  height: 100%; background: var(--bg-card);
+  width: 0%;
+  border-radius: 2px;
+  transition: width 0.1s linear;
+}
+.boot-status {
+  font-size: 12px;
+  opacity: 0.85;
+  margin-top: 12px;
+  font-weight: 500;
+  position: relative;
+}
+.splash-meta {
+  position: absolute; bottom: 32px;
+  font-size: 10.5px;
+  opacity: 0.6;
+  letter-spacing: 0.05em;
+  text-align: center;
+  font-weight: 500;
+}
+
+/* ==== HEADER ==== */
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 18px 6px;
+  padding-top: max(12px, calc(env(safe-area-inset-top) + 12px));
+}
+.logo {
+  display: flex; align-items: center; gap: 8px;
+}
+.logo-mark {
+  width: 28px; height: 28px;
+  background: var(--primary-grad);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  color: #000; font-weight: 800; font-size: 14px;
+  font-style: italic;
+  box-shadow: 0 4px 12px rgba(255,255,255,0.12);
+}
+.logo-text {
+  font-size: 15px; font-weight: 800;
+  color: var(--text-1);
+  letter-spacing: -0.01em;
+}
+.header-icons {
+  display: flex; gap: 6px;
+}
+.icon-btn {
+  width: 32px; height: 32px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  position: relative;
+  color: var(--text-2);
+  transition: all 0.15s;
+}
+.icon-btn:hover { background: var(--bg-input); }
+.icon-btn svg { width: 15px; height: 15px; }
+.icon-btn .badge-dot {
+  position: absolute; top: 6px; right: 7px;
+  width: 6px; height: 6px;
+  background: var(--primary);
+  border: 1.5px solid white;
+  border-radius: 50%;
+}
+
+/* 큰 글씨 토글 버튼 */
+.text-size-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 0 10px;
+  height: 32px;
+  display: flex; align-items: center; gap: 3px;
+  cursor: pointer;
+  font-family: var(--font);
+  color: var(--text-2);
+  transition: all 0.15s;
+  line-height: 1;
+}
+.text-size-btn:hover { background: var(--bg-input); }
+.text-size-btn .ts-small { font-size: 11px; font-weight: 700; line-height: 1; }
+.text-size-btn .ts-big { font-size: 15px; font-weight: 800; color: var(--primary); line-height: 1; }
+body.large-text .text-size-btn {
+  background: var(--primary-soft);
+  border-color: rgba(255,255,255,0.10);
+}
+body.large-text .text-size-btn .ts-small { color: var(--primary); opacity: 0.5; }
+
+/* 단골 주유 카드 */
+.favorite-card {
+  background: var(--bg-card);
+  border: 1.5px solid var(--primary);
+  border-radius: var(--r-md);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(255,255,255,0.05);
+  transition: all 0.15s;
+  position: relative;
+  overflow: hidden;
+}
+.favorite-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, var(--primary-soft) 0%, transparent 60%);
+  pointer-events: none;
+}
+.favorite-card:active {
+  transform: scale(0.98);
+  box-shadow: 0 2px 8px rgba(255,255,255,0.06);
+}
+.favorite-icon {
+  width: 36px; height: 36px;
+  background: var(--primary-grad);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  color: #000;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 4px 12px rgba(255,255,255,0.10);
+}
+.favorite-icon svg { width: 18px; height: 18px; fill: #000; stroke: #000; }
+.favorite-text { flex: 1; min-width: 0; position: relative; z-index: 1; }
+.favorite-title {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--text-1);
+  letter-spacing: -0.01em;
+}
+.favorite-meta {
+  font-size: 11.5px;
+  color: var(--text-2);
+  margin-top: 2px;
+  font-weight: 600;
+}
+.favorite-go {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #000;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+.favorite-go svg { width: 13px; height: 13px; }
+
+/* ===== 큰 글씨 모드 ===== */
+body.large-text .greeting-title { font-size: 22px; }
+body.large-text .vehicle-name { font-size: 17px; }
+body.large-text .vehicle-plate { font-size: 13.5px; }
+body.large-text .tank-label,
+body.large-text .tank-amount { font-size: 14px; }
+body.large-text .tank-amount b { font-size: 19px; }
+body.large-text .favorite-title { font-size: 16px; }
+body.large-text .favorite-meta { font-size: 13.5px; }
+body.large-text .section-title { font-size: 15px; }
+body.large-text .fuel-card-name { font-size: 15px; }
+body.large-text .fuel-card-price { font-size: 13px; }
+body.large-text .fuel-card { padding: 14px 6px; }
+body.large-text .amount-num { font-size: 42px; }
+body.large-text .amount-num .unit { font-size: 22px; }
+body.large-text .amount-cost { font-size: 14px; }
+body.large-text .preset-btn { font-size: 14px; padding: 11px 0; }
+body.large-text .payment-name { font-size: 15px; }
+body.large-text .payment-num { font-size: 12.5px; }
+body.large-text .btn-start { font-size: 18px; padding: 18px; }
+body.large-text input[type="range"] { height: 8px; }
+body.large-text input[type="range"]::-webkit-slider-thumb { width: 28px; height: 28px; }
+body.large-text input[type="range"]::-moz-range-thumb { width: 28px; height: 28px; }
+/* modal large */
+body.large-text .modal-title { font-size: 22px; }
+body.large-text .modal-sub { font-size: 14px; }
+body.large-text .modal-info-label { font-size: 12.5px; }
+body.large-text .modal-info-val { font-size: 18px; }
+body.large-text .safety-text { font-size: 13.5px; }
+body.large-text .modal-stop { font-size: 15px; padding: 14px; }
+body.large-text .receipt-row { font-size: 14.5px; }
+body.large-text .receipt-row.total .receipt-label { font-size: 15px; }
+body.large-text .receipt-row.total .receipt-val { font-size: 18px; }
+.point-chip {
+  display: flex; align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  background: var(--primary-soft);
+  border-radius: 100px;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.point-chip svg { width: 14px; height: 14px; }
+.point-chip b { font-weight: 800; }
+
+/* ==== GREETING ==== */
+.greeting {
+  padding: 2px 18px 8px;
+}
+.greeting-title {
+  font-size: 17px; font-weight: 700;
+  color: var(--text-1);
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+}
+.greeting-title b {
+  color: var(--primary);
+  font-weight: 800;
+}
+
+/* ==== STACK ==== */
+.stack {
+  flex: 1;
+  display: flex; flex-direction: column;
+  padding: 0 14px 100px;
+  gap: 8px;
+}
+
+/* ==== VEHICLE CARD ==== */
+.vehicle-card {
+  background: var(--bg-card);
+  border-radius: var(--r-lg);
+  padding: 12px 14px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+}
+.vehicle-top {
+  display: flex; gap: 12px;
+  align-items: center;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+  border-bottom: 1px dashed var(--border-strong);
+}
+.vehicle-illust {
+  width: 48px; height: 32px;
+  flex-shrink: 0;
+}
+.vehicle-info { flex: 1; min-width: 0; }
+.vehicle-name {
+  font-size: 14px; font-weight: 700;
+  color: var(--text-1);
+  letter-spacing: -0.02em;
+}
+.vehicle-plate {
+  font-size: 11px;
+  color: var(--text-2);
+  margin-top: 2px;
+  font-weight: 500;
+}
+.fav-tag {
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 3px 7px;
+  border-radius: 100px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.tank-row {
+  display: flex; justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+.tank-label {
+  font-size: 11.5px;
+  color: var(--text-2);
+  font-weight: 600;
+}
+.tank-amount {
+  font-size: 11.5px;
+  color: var(--text-2);
+  font-weight: 600;
+}
+.tank-amount b {
+  font-size: 15px;
+  color: var(--text-1);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.tank-bar {
+  height: 7px;
+  background: var(--bg-input);
+  border-radius: 100px;
+  overflow: hidden;
+}
+.tank-fill {
+  height: 100%;
+  background: var(--primary-grad);
+  border-radius: 100px;
+  transition: width 0.4s;
+}
+
+/* ==== SECTION ==== */
+.section-title {
+  font-size: 12px; font-weight: 700;
+  color: var(--text-1);
+  margin: 2px 4px 6px;
+  letter-spacing: -0.01em;
+}
+
+/* ==== FUEL ==== */
+.fuel-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 7px;
+}
+.fuel-card {
+  background: var(--bg-card);
+  border: 2px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 10px 6px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.fuel-card:hover { border-color: var(--border-strong); }
+.fuel-card.active {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+.fuel-card-name {
+  font-size: 12.5px; font-weight: 700;
+  color: var(--text-1);
+  margin-bottom: 2px;
+}
+.fuel-card.active .fuel-card-name { color: var(--primary); }
+.fuel-card-price {
+  font-size: 10.5px;
+  color: var(--text-3);
+  font-weight: 600;
+}
+.fuel-card.active .fuel-card-price { color: var(--primary); opacity: 0.85; }
+
+/* ==== AMOUNT ==== */
+.amount-card {
+  background: var(--bg-card);
+  border-radius: var(--r-lg);
+  padding: 14px 16px 12px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+}
+.amount-display {
+  text-align: center;
+  margin-bottom: 10px;
+}
+.amount-num {
+  font-size: 32px; font-weight: 800;
+  color: var(--primary);
+  line-height: 1;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+.amount-num .unit {
+  font-size: 17px;
+  color: var(--text-3);
+  font-weight: 700;
+  margin-left: 3px;
+}
+.amount-cost {
+  font-size: 11.5px;
+  color: var(--text-2);
+  margin-top: 4px;
+  font-weight: 600;
+}
+.amount-cost b {
+  color: var(--text-1);
+  font-weight: 800;
+}
+
+input[type="range"] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 5px;
+  background: var(--bg-input);
+  border-radius: 100px; outline: none; cursor: pointer;
+  margin-bottom: 10px;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 20px; height: 20px;
+  background: var(--bg-card);
+  border: 4px solid var(--primary);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 20px; height: 20px;
+  background: var(--bg-card);
+  border: 4px solid var(--primary);
+  border-radius: 50%;
+  cursor: pointer;
+}
+.discount-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--primary-soft);
+  border-radius: 10px;
+  padding: 7px 11px;
+  margin-bottom: 10px;
+}
+.discount-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--primary);
+}
+.discount-val {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+}
+.preset-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+}
+.preset-btn {
+  background: var(--bg-input);
+  border: none;
+  padding: 8px 0;
+  border-radius: 9px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: var(--font);
+}
+.preset-btn:hover {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+/* ==== PAYMENT ==== */
+.payment-card {
+  background: var(--bg-card);
+  border-radius: var(--r-md);
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-xs);
+  cursor: pointer;
+}
+.payment-icon {
+  width: 34px; height: 34px;
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  color: white;
+  flex-shrink: 0;
+}
+.payment-icon svg { width: 16px; height: 16px; }
+.payment-info { flex: 1; min-width: 0; }
+.payment-name {
+  font-size: 12.5px; font-weight: 700;
+  color: var(--text-1);
+}
+.payment-num {
+  font-size: 10.5px;
+  color: var(--text-2);
+  margin-top: 2px;
+  font-weight: 500;
+}
+.payment-arrow { color: var(--text-3); font-size: 15px; }
+
+/* ==== START ==== */
+.start-section {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  margin: 0 auto;
+  width: 100%;
+  max-width: 480px;
+  padding: 12px 14px;
+  padding-bottom: max(14px, env(safe-area-inset-bottom));
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid rgba(255,255,255,0.06);
+  z-index: 50;
+}
+.btn-start {
+  width: 100%;
+  background: var(--primary-grad);
+  color: #000;
+  border: none;
+  padding: 15px;
+  border-radius: var(--r-md);
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  font-family: var(--font);
+  box-shadow: 0 6px 20px rgba(255,255,255,0.08);
+  transition: all 0.2s;
+  letter-spacing: -0.01em;
+}
+.btn-start:hover { transform: translateY(-1px); box-shadow: 0 12px 28px rgba(255,255,255,0.14); }
+.btn-start:active { transform: scale(0.98); }
+.btn-start:disabled {
+  background: #1a1a1c;
+  color: #ffffff;
+  box-shadow: none;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ==== TOAST ==== */
+.toast {
+  position: fixed;
+  top: 70px; left: 50%;
+  transform: translateX(-50%) translateY(-20px);
+  background: var(--text-1);
+  color: #000;
+  padding: 11px 18px;
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 600;
+  z-index: 90;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  font-family: var(--font);
+}
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ==== MODAL ==== */
+.modal {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  z-index: 80;
+  background: var(--bg-page);
+  display: flex;
+  flex-direction: column;
+  padding: 14px 14px 12px;
+  padding-top: max(14px, calc(env(safe-area-inset-top) + 14px));
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(20px);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+  overflow-y: auto;
+}
+.modal.show {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+/* big illust card */
+.illust-card {
+  background: linear-gradient(160deg, #1a1a1c 0%, #161618 100%);
+  border-radius: var(--r-xl);
+  padding: 12px 14px 8px;
+  margin-bottom: 10px;
+  position: relative;
+  overflow: hidden;
+}
+.illust-card::before {
+  content: '';
+  position: absolute;
+  top: -40px; right: -40px;
+  width: 110px; height: 110px;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 50%;
+}
+.illust-card::after {
+  content: '';
+  position: absolute;
+  bottom: -30px; left: -30px;
+  width: 70px; height: 70px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 50%;
+}
+.illust-stage-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.18);
+  backdrop-filter: blur(10px);
+  padding: 5px 12px;
+  border-radius: 100px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.04em;
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 0 16px rgba(255,255,255,0.08);
+}
+.illust-stage-pill::before {
+  content: ''; width: 6px; height: 6px;
+  background: #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(255,255,255,0.6);
+  animation: blink 1.2s ease-in-out infinite;
+}
+@keyframes blink { 50% { opacity: 0.3; } }
+.illust-svg {
+  display: flex;
+  justify-content: center;
+  margin-top: 2px;
+  position: relative;
+  z-index: 1;
+}
+.illust-svg svg { width: 150px; height: 105px; }
+
+/* status text */
+.modal-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text-1);
+  text-align: center;
+  margin-bottom: 4px;
+  letter-spacing: -0.03em;
+  line-height: 1.25;
+}
+.modal-sub {
+  font-size: 12px;
+  color: var(--text-2);
+  text-align: center;
+  margin-bottom: 10px;
+  font-weight: 500;
+}
+
+/* dots */
+.modal-dots {
+  display: flex;
+  gap: 5px;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+.modal-dot {
+  width: 20px; height: 4px;
+  border-radius: 100px;
+  background: #2a2a2e;
+  transition: all 0.3s;
+}
+.modal-dot.done { background: #ffffff; opacity: 0.35; }
+.modal-dot.active {
+  background: #ffffff;
+  width: 36px;
+  box-shadow: 0 0 12px rgba(255,255,255,0.4);
+}
+
+/* info card */
+.modal-info {
+  background: var(--bg-card);
+  border-radius: var(--r-md);
+  padding: 11px 14px;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  box-shadow: var(--shadow-xs);
+  border: 1px solid var(--border);
+}
+.modal-info-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+.modal-info-cell:last-child { text-align: right; }
+.modal-info-label {
+  font-size: 10.5px;
+  color: var(--text-2);
+  font-weight: 600;
+}
+.modal-info-val {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-1);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.modal-info-val.amber { color: var(--primary); }
+.modal-info-val.cyan { color: var(--accent); }
+
+/* receipt (완료 시에만 표시) */
+.receipt {
+  display: none;
+  background: var(--bg-card);
+  border-radius: var(--r-md);
+  padding: 14px 16px;
+  margin-bottom: 8px;
+  box-shadow: var(--shadow-xs);
+  border: 1px solid var(--border);
+}
+.modal.complete .receipt { display: block; }
+.modal.complete .modal-info { display: none; }
+.receipt-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 5px 0;
+  font-size: 12.5px;
+}
+.receipt-label {
+  color: var(--text-2);
+  font-weight: 600;
+}
+.receipt-val {
+  color: var(--text-1);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.receipt-row.discount .receipt-label,
+.receipt-row.discount .receipt-val {
+  color: var(--primary);
+}
+.receipt-row.total {
+  padding-top: 10px;
+  margin-top: 4px;
+  border-top: 1px dashed var(--border-strong);
+}
+.receipt-row.total .receipt-label {
+  color: var(--text-1);
+  font-weight: 800;
+  font-size: 13px;
+}
+.receipt-row.total .receipt-val {
+  color: var(--text-1);
+  font-weight: 800;
+  font-size: 16px;
+  letter-spacing: -0.02em;
+}
+.receipt-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 8px 0 4px;
+}
+.receipt-row.earn .receipt-label {
+  color: var(--primary);
+  display: inline-flex;
+  align-items: center;
+}
+.receipt-row.earn .receipt-val {
+  color: var(--primary);
+  font-weight: 800;
+}
+
+/* safety */
+.safety {
+  background: var(--green-soft);
+  border-radius: var(--r-md);
+  padding: 9px 12px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 8px;
+}
+.safety-icon {
+  width: 28px; height: 28px;
+  background: var(--bg-card);
+  border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  color: var(--green);
+}
+.safety-icon svg { width: 14px; height: 14px; }
+.safety-text {
+  font-size: 11.5px;
+  color: var(--text-1);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+/* stop btn */
+.modal-stop {
+  margin-top: auto;
+  background: var(--bg-card);
+  color: var(--danger);
+  border: 1.5px solid var(--danger-soft);
+  border-radius: var(--r-md);
+  padding: 12px;
+  font-family: var(--font);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.modal-stop:hover { background: var(--danger-soft); }
+.modal-stop.confirm {
+  background: var(--text-1);
+  color: #000;
+  border-color: var(--text-1);
+}
+.modal-stop.confirm:hover { background: #000; }
+
+/* ==== 결제 확인 다이얼로그 ==== */
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.confirm-overlay.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+.confirm-card {
+  background: var(--bg-card);
+  border-radius: 22px;
+  padding: 24px 22px 18px;
+  width: 100%;
+  max-width: 360px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  transform: scale(0.95);
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.confirm-overlay.show .confirm-card {
+  transform: scale(1);
+}
+.confirm-icon {
+  width: 48px; height: 48px;
+  background: var(--primary-soft);
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--primary);
+  margin: 0 auto 14px;
+}
+.confirm-icon svg { width: 24px; height: 24px; }
+.confirm-title {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--text-1);
+  text-align: center;
+  letter-spacing: -0.02em;
+  margin-bottom: 4px;
+}
+.confirm-desc {
+  font-size: 12px;
+  color: var(--text-2);
+  text-align: center;
+  font-weight: 500;
+  margin-bottom: 18px;
+}
+.confirm-detail {
+  background: var(--bg-input);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+.confirm-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 5px 0;
+  font-size: 12.5px;
+}
+.confirm-label {
+  color: var(--text-2);
+  font-weight: 600;
+}
+.confirm-val {
+  color: var(--text-1);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.confirm-row.total {
+  padding-top: 10px;
+  margin-top: 4px;
+  border-top: 1px dashed var(--border-strong);
+}
+.confirm-row.total .confirm-label {
+  font-weight: 800;
+  color: var(--text-1);
+  font-size: 13.5px;
+}
+.confirm-row.total .confirm-val {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--primary);
+  letter-spacing: -0.02em;
+}
+.confirm-btns {
+  display: grid;
+  grid-template-columns: 1fr 1.6fr;
+  gap: 8px;
+}
+.confirm-cancel {
+  background: var(--bg-input);
+  border: none;
+  padding: 14px;
+  border-radius: 12px;
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-2);
+  cursor: pointer;
+}
+.confirm-cancel:hover { background: #26262a; }
+.confirm-go {
+  background: var(--primary-grad);
+  border: none;
+  padding: 14px;
+  border-radius: 12px;
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 800;
+  color: #000;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(255,255,255,0.10);
+}
+
+/* ==== 긴급 전화 (정지 시에만) ==== */
+.emergency-call {
+  display: none;
+  background: var(--danger-soft);
+  border: 1px solid #3a1818;
+  border-radius: var(--r-md);
+  padding: 12px 14px;
+  margin-bottom: 8px;
+}
+.modal[data-stage="stopped"] .emergency-call { display: block; }
+.emergency-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--danger);
+  text-align: center;
+  margin-bottom: 8px;
+}
+.emergency-btns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.emergency-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 0;
+  background: #1a0a0a;
+  border: 1.5px solid #3a1818;
+  border-radius: 10px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.emergency-btn:active { transform: scale(0.97); }
+.emergency-num {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--danger);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.emergency-btn.police .emergency-num { color: #60a5fa; }
+.emergency-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-2);
+  margin-top: 2px;
+}
+
+/* large text mode for confirm */
+body.large-text .confirm-title { font-size: 19px; }
+body.large-text .confirm-desc { font-size: 13.5px; }
+body.large-text .confirm-row { font-size: 14px; }
+body.large-text .confirm-row.total .confirm-label { font-size: 15px; }
+body.large-text .confirm-row.total .confirm-val { font-size: 19px; }
+body.large-text .confirm-cancel,
+body.large-text .confirm-go { font-size: 16px; padding: 16px; }
+body.large-text .emergency-num { font-size: 23px; }
+body.large-text .emergency-label { font-size: 13px; }
+
+/* SVG illust animations */
+.nozzle-grp {
+  transform-origin: center;
+  transition: transform 0.8s cubic-bezier(0.65, 0, 0.35, 1);
+}
+.scan-glow { opacity: 0; }
+.modal[data-stage="detect"] .scan-glow { animation: scanPulse 1.4s ease-in-out infinite; }
+@keyframes scanPulse {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+.cap-highlight { opacity: 0; transition: opacity 0.4s; }
+.modal[data-stage="detect"] .cap-highlight,
+.modal[data-stage="align"] .cap-highlight,
+.modal[data-stage="dispense"] .cap-highlight { opacity: 1; }
+.fuel-drop { opacity: 0; }
+.modal[data-stage="dispense"] .fuel-drop {
+  opacity: 1;
+  animation: drop 0.7s ease-in-out infinite;
+}
+@keyframes drop {
+  0% { transform: translateY(-3px); opacity: 0; }
+  50% { opacity: 1; }
+  100% { transform: translateY(8px); opacity: 0; }
+}
+.check-circ { opacity: 0; transition: opacity 0.4s 0.2s; transform: scale(0.5); transform-origin: center; }
+.modal.complete .check-circ { opacity: 1; transform: scale(1); }
+</style>
+</head>
+<body>
+<div class="device">
+
+  <!-- ==== SPLASH ==== -->
+  <div class="splash" id="splash">
+    <div class="splash-mark">
+      <svg viewBox="0 0 44 44" fill="none">
+        <path d="M14 6 L14 38 M14 6 L26 6 Q32 6 32 12 L32 18 Q32 24 26 24 L14 24 M30 24 L34 28 L34 36 Q34 38 36 38" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="splash-name">NEXFUEL</div>
+    <div class="splash-sub">자동 주유 시스템</div>
+    <div class="boot-bar"><div class="boot-fill" id="bootFill"></div></div>
+    <div class="boot-status" id="bootStatus">시작하는 중...</div>
+    <div class="splash-meta">DESIGNED BY TEAM 사고뭉치 · 창의제품설계 2026</div>
+  </div>
+
+  <!-- ==== HEADER ==== -->
+  <header class="header">
+    <div class="logo">
+      <div class="logo-mark">N</div>
+      <div class="logo-text">NEXFUEL</div>
+    </div>
+    <div class="header-icons">
+      <button class="text-size-btn" id="textSizeBtn" aria-label="글씨 크게">
+        <span class="ts-small">가</span><span class="ts-big">가</span>
+      </button>
+      <button class="icon-btn" id="menuBtn" aria-label="메뉴">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="4" y1="6" x2="20" y2="6"/>
+          <line x1="4" y1="12" x2="20" y2="12"/>
+          <line x1="4" y1="18" x2="20" y2="18"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ==== GREETING ==== -->
+  <div class="greeting">
+    <div class="greeting-title">안녕하세요, <b>희찬</b>님 👋</div>
+  </div>
+
+  <!-- ==== STACK ==== -->
+  <div class="stack">
+
+    <!-- vehicle card -->
+    <div class="vehicle-card" id="vehicleCard">
+      <div class="vehicle-top">
+        <div class="vehicle-illust">
+          <svg viewBox="0 0 60 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- shadow -->
+            <ellipse cx="30" cy="34" rx="24" ry="2" fill="#1a1a1a" opacity="0.08"/>
+            <!-- body -->
+            <path d="M 4 28 L 4 22 Q 4 19 7 19 L 16 19 L 20 13 Q 22 11 25 11 L 38 11 Q 42 11 44 14 L 48 19 L 54 19 Q 58 19 58 22 L 58 28 Q 58 30 56 30 L 6 30 Q 4 30 4 28 Z" fill="#2a2a2e"/>
+            <!-- window -->
+            <path d="M 21 13 L 38 13 Q 41 13 42 15 L 45 19 L 22 19 Z" fill="white" opacity="0.55"/>
+            <!-- highlight -->
+            <path d="M 4 24 L 58 24" stroke="white" stroke-width="0.5" opacity="0.3"/>
+            <!-- wheels -->
+            <circle cx="15" cy="30" r="4.5" fill="#1a1a1a"/>
+            <circle cx="45" cy="30" r="4.5" fill="#1a1a1a"/>
+            <circle cx="15" cy="30" r="2" fill="#6b7280"/>
+            <circle cx="45" cy="30" r="2" fill="#6b7280"/>
+          </svg>
+        </div>
+        <div class="vehicle-info">
+          <div class="vehicle-name">포르쉐 911 GTS</div>
+          <div class="vehicle-plate">100거 2223 · 고급휘발유</div>
+        </div>
+        <div class="fav-tag">
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+          기본 차량
+        </div>
+      </div>
+      <div class="tank-row">
+        <div class="tank-label">현재 연료량</div>
+        <div class="tank-amount"><b id="tankL">10.5</b> / 60L · <span id="tankPct">17.5</span>%</div>
+      </div>
+      <div class="tank-bar">
+        <div class="tank-fill" id="tankFill" style="width: 17.5%"></div>
+      </div>
+    </div>
+
+    <!-- 단골 주유 카드 -->
+    <div class="favorite-card" id="favoriteCard">
+      <div class="favorite-icon">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+        </svg>
+      </div>
+      <div class="favorite-text">
+        <div class="favorite-title">단골 주유</div>
+        <div class="favorite-meta"><span id="favFuel">고급휘발유</span> · <span id="favAmount">30</span>L · ₩<span id="favCost">73,260</span></div>
+      </div>
+      <div class="favorite-go">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 6 l6 6 l-6 6"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- fuel selection -->
+    <div>
+      <div class="section-title">연료 종류</div>
+      <div class="fuel-grid">
+        <div class="fuel-card" data-fuel="gas" data-price="2011">
+          <div class="fuel-card-name">휘발유</div>
+          <div class="fuel-card-price">₩2,011</div>
+        </div>
+        <div class="fuel-card active" data-fuel="premium" data-price="2442">
+          <div class="fuel-card-name">고급휘발유</div>
+          <div class="fuel-card-price">₩2,442</div>
+        </div>
+        <div class="fuel-card" data-fuel="diesel" data-price="2005">
+          <div class="fuel-card-name">경유</div>
+          <div class="fuel-card-price">₩2,005</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- amount -->
+    <div class="amount-card">
+      <div class="amount-display">
+        <div class="amount-num"><span id="amountVal">0</span><span class="unit">L</span></div>
+        <div class="amount-cost">결제 예정 금액 <b>₩<span id="costVal">0</span></b></div>
+      </div>
+      <input type="range" id="amountSlider" min="0" max="50" step="1" value="0">
+      <div class="preset-grid">
+        <button class="preset-btn" data-amt="10">10L</button>
+        <button class="preset-btn" data-amt="20">20L</button>
+        <button class="preset-btn" data-amt="30">30L</button>
+        <button class="preset-btn" data-amt="full">가득</button>
+      </div>
+    </div>
+
+    <!-- payment method -->
+    <div class="payment-card" id="paymentCard">
+      <div class="payment-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="5" width="20" height="14" rx="2"/>
+          <line x1="2" y1="10" x2="22" y2="10"/>
+        </svg>
+      </div>
+      <div class="payment-info">
+        <div class="payment-name">신한카드 The More</div>
+        <div class="payment-num">**** 3043 · 자동결제</div>
+      </div>
+      <div class="payment-arrow">›</div>
+    </div>
+
+    <!-- spacer: 마지막 컨텐츠와 화면 하단 사이 빈 공간 자동 채움 -->
+    <div style="flex: 1 1 auto; min-height: 80px;"></div>
+
+    <!-- start -->
+    <div class="start-section">
+      <button class="btn-start" id="startBtn" disabled>주유 시작하기</button>
+    </div>
+
+  </div>
+
+  <!-- ==== PROGRESS MODAL ==== -->
+  <div class="modal" id="modal" data-stage="standby">
+    <div class="illust-card">
+      <div class="illust-stage-pill" id="modalStagePill">진행 중</div>
+      <div class="illust-svg">
+        <svg viewBox="0 0 200 145" xmlns="http://www.w3.org/2000/svg">
+          <!-- shadow -->
+          <ellipse cx="100" cy="125" rx="70" ry="5" fill="#1a1a1a" opacity="0.08"/>
+          
+          <!-- car -->
+          <g>
+            <!-- body -->
+            <path d="M 35 115 L 35 80 Q 35 70 45 70 L 155 70 Q 165 70 165 80 L 165 115 Q 165 120 160 120 L 40 120 Q 35 120 35 115 Z" fill="#2a2a2e"/>
+            <!-- window -->
+            <path d="M 50 70 L 150 70 L 150 90 L 50 90 Z" fill="white" opacity="0.55"/>
+            <!-- door line -->
+            <path d="M 100 90 L 100 120" stroke="rgba(0,0,0,0.1)" stroke-width="1.5"/>
+            <!-- wheels -->
+            <circle cx="60" cy="120" r="11" fill="#1a1a1a"/>
+            <circle cx="140" cy="120" r="11" fill="#1a1a1a"/>
+            <circle cx="60" cy="120" r="5" fill="#6b7280"/>
+            <circle cx="140" cy="120" r="5" fill="#6b7280"/>
+            <!-- tail lights -->
+            <rect x="38" y="98" width="14" height="6" rx="2" fill="#7f1d1d" opacity="0.5"/>
+            <rect x="148" y="98" width="14" height="6" rx="2" fill="#7f1d1d" opacity="0.5"/>
+            <!-- fuel cap -->
+            <circle cx="125" cy="105" r="6" fill="#fff" stroke="#1a1a1a" stroke-width="1" opacity="0.85"/>
+            <circle cx="125" cy="105" r="2" fill="#1a1a1a" opacity="0.4"/>
+          </g>
+
+          <!-- cap detection ring -->
+          <g class="cap-highlight">
+            <circle cx="125" cy="105" r="11" fill="none" stroke="#10b981" stroke-width="2" stroke-dasharray="3 2"/>
+            <rect x="113" y="89" width="36" height="11" fill="#10b981" rx="3"/>
+            <text x="116" y="97" font-family="Pretendard, sans-serif" font-size="6.5" font-weight="700" fill="white">주유구</text>
+          </g>
+
+          <!-- nozzle -->
+          <g class="nozzle-grp" id="nozzleSvg" transform="translate(0,0)">
+            <!-- handle/grip -->
+            <rect x="118" y="20" width="14" height="40" fill="#374151" rx="2"/>
+            <rect x="115" y="18" width="20" height="6" fill="#4b5563" rx="2"/>
+            <!-- trigger -->
+            <path d="M 132 38 L 144 42 L 144 52 L 132 48 Z" fill="#ffffff"/>
+            <!-- nozzle pipe -->
+            <rect x="121" y="58" width="8" height="22" fill="#374151" rx="0.5"/>
+            <rect x="122" y="78" width="6" height="4" fill="#1a1a1a"/>
+          </g>
+
+          <!-- fuel drops -->
+          <g class="fuel-drop">
+            <circle cx="125" cy="88" r="2" fill="#7ec8e3"/>
+            <circle cx="125" cy="95" r="1.5" fill="#7ec8e3" opacity="0.7"/>
+            <circle cx="125" cy="101" r="1.8" fill="#7ec8e3" opacity="0.5"/>
+          </g>
+
+          <!-- scan glow during detect -->
+          <g class="scan-glow">
+            <rect x="35" y="60" width="130" height="60" fill="#ffffff" opacity="0.08" rx="8"/>
+            <line x1="35" y1="90" x2="165" y2="90" stroke="#ffffff" stroke-width="1.5" opacity="0.4"/>
+          </g>
+
+          <!-- complete check -->
+          <g class="check-circ">
+            <circle cx="100" cy="80" r="38" fill="#10b981"/>
+            <path d="M 84 80 L 95 92 L 116 70" stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          </g>
+        </svg>
+      </div>
+    </div>
+
+    <div class="modal-title" id="modalTitle">차량을 인식하고 있어요</div>
+    <div class="modal-sub" id="modalSub">잠시만 기다려주세요</div>
+
+    <div class="modal-dots" id="modalDots"></div>
+
+    <div class="modal-info" id="modalInfo">
+      <div class="modal-info-cell">
+        <div class="modal-info-label">주유량</div>
+        <div class="modal-info-val amber"><span id="modalAmount">0</span>L</div>
+      </div>
+      <div class="modal-info-cell">
+        <div class="modal-info-label">결제 금액</div>
+        <div class="modal-info-val cyan">₩<span id="modalCost">0</span></div>
+      </div>
+    </div>
+
+    <div class="receipt" id="receipt">
+      <div class="receipt-row">
+        <span class="receipt-label">주유량</span>
+        <span class="receipt-val"><span id="rcAmount">0</span>L</span>
+      </div>
+      <div class="receipt-row">
+        <span class="receipt-label">단가</span>
+        <span class="receipt-val">₩<span id="rcPrice">0</span>/L</span>
+      </div>
+      <div class="receipt-row total">
+        <span class="receipt-label">총 결제 금액</span>
+        <span class="receipt-val">₩<span id="rcTotal">0</span></span>
+      </div>
+    </div>
+
+    <div class="safety">
+      <div class="safety-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <path d="M9 12l2 2 4-4"/>
+        </svg>
+      </div>
+      <div class="safety-text" id="safetyText">차량 안에서 안전하게 기다려주세요</div>
+    </div>
+
+    <!-- 긴급 전화 (정지 시에만 표시) -->
+    <div class="emergency-call" id="emergencyCall">
+      <div class="emergency-title">위험한 상황인가요?</div>
+      <div class="emergency-btns">
+        <a href="tel:119" class="emergency-btn fire">
+          <div class="emergency-num">119</div>
+          <div class="emergency-label">소방서</div>
+        </a>
+        <a href="tel:112" class="emergency-btn police">
+          <div class="emergency-num">112</div>
+          <div class="emergency-label">경찰서</div>
+        </a>
+      </div>
+    </div>
+
+    <button class="modal-stop" id="modalStop">긴급 정지</button>
+  </div>
+
+  <div class="toast" id="toast">최대 용량을 초과했어요</div>
+
+  <!-- ==== 결제 확인 다이얼로그 ==== -->
+  <div class="confirm-overlay" id="confirmOverlay">
+    <div class="confirm-card">
+      <div class="confirm-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="5" width="20" height="14" rx="2"/>
+          <line x1="2" y1="10" x2="22" y2="10"/>
+        </svg>
+      </div>
+      <div class="confirm-title">결제하고 주유를 시작할까요?</div>
+      <div class="confirm-desc">시작 후에는 자동으로 결제가 진행돼요</div>
+
+      <div class="confirm-detail">
+        <div class="confirm-row">
+          <span class="confirm-label">차량</span>
+          <span class="confirm-val">포르쉐 911 GTS</span>
+        </div>
+        <div class="confirm-row">
+          <span class="confirm-label">연료</span>
+          <span class="confirm-val"><span id="cfFuel">고급휘발유</span> · <span id="cfAmount">0</span>L</span>
+        </div>
+        <div class="confirm-row">
+          <span class="confirm-label">결제 카드</span>
+          <span class="confirm-val">신한카드 ****3043</span>
+        </div>
+        <div class="confirm-row total">
+          <span class="confirm-label">결제 금액</span>
+          <span class="confirm-val">₩<span id="cfCost">0</span></span>
+        </div>
+      </div>
+
+      <div class="confirm-btns">
+        <button class="confirm-cancel" id="confirmCancel">취소</button>
+        <button class="confirm-go" id="confirmGo">확인하고 시작</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+'use strict';
+
+// 앱 표시 4단계. server_phase 는 라즈베리파이 /status 가 돌려주는 단계 키와 매칭됨.
+// 실제 제어코드 STEP 매핑:
+//   find    = STEP 1~3 (마커 탐색·정렬·오프셋)
+//   open    = STEP 4~6 (흡착패드 정렬·전진·진공·커버 개방)
+//   dispense= STEP 7   (노즐 정렬·전진·주유)
+//   finish  = STEP 8~11(노즐 후퇴·커버 닫기·패드 후퇴·중앙 복귀)
+const STAGES = [
+  { id: 'detect',   server: 'find',     pill: '1단계 · 주유구 찾기', title: '주유구를 찾고 있어요',   sub: '카메라가 위치를 확인하는 중이에요' },
+  { id: 'align',    server: 'open',     pill: '2단계 · 주유구 열기', title: '주유구를 열고 있어요',   sub: '커버를 열고 노즐을 맞추는 중이에요' },
+  { id: 'dispense', server: 'dispense', pill: '3단계 · 주유',       title: '주유 중이에요',          sub: '안전하게 주유하고 있어요' },
+  { id: 'finish',   server: 'finish',   pill: '4단계 · 마무리',     title: '마무리 중이에요',        sub: '노즐을 제자리로 옮기고 있어요' },
+];
+
+// 서버 단계키 → STAGES 인덱스 (폴링 응답 해석용)
+const PHASE_TO_IDX = { find: 0, open: 1, dispense: 2, finish: 3, done: 3 };
+
+// ===== 서버 연동 설정 =====
+// 라즈베리파이 Flask 서버 주소. 같은 와이파이에서 라즈베리파이 IP로 바꾸세요.
+// 예: 'http://192.168.0.42:5000'  (포트는 Flask 기본 5000)
+const SERVER_URL = '';   // 라즈베리파이 IP (핫스팟 환경). 비우면 목업 모드.
+
+const STAGE_MS = { detect: 2500, align: 2500, finish: 2000 };  // 목업 모드용 단계별 시간
+
+const state = {
+  fuel: 'premium',
+  price: 2442,
+  target: 0,
+  tank: 10.5,
+  tankCap: 60,
+  running: false,
+  stopped: false,
+  flowLpm: 28.5,
+  // 단골 주유 (디폴트값 - 첫 사용 전엔 이게 보임)
+  favorite: { fuel: 'premium', price: 2442, amount: 30 },
+  largeText: false,
+};
+
+const $ = (id) => document.getElementById(id);
+const el = {
+  splash: $('splash'), bootFill: $('bootFill'), bootStatus: $('bootStatus'),
+  amountSlider: $('amountSlider'), amountVal: $('amountVal'),
+  costVal: $('costVal'),
+  tankPct: $('tankPct'), tankL: $('tankL'), tankFill: $('tankFill'),
+  startBtn: $('startBtn'),
+  toast: $('toast'),
+  modal: $('modal'),
+  modalStagePill: $('modalStagePill'),
+  modalTitle: $('modalTitle'), modalSub: $('modalSub'),
+  modalDots: $('modalDots'),
+  modalAmount: $('modalAmount'), modalCost: $('modalCost'),
+  rcAmount: $('rcAmount'), rcPrice: $('rcPrice'),
+  rcTotal: $('rcTotal'),
+  safetyText: $('safetyText'),
+  modalStop: $('modalStop'),
+  nozzleSvg: $('nozzleSvg'),
+  vehicleCard: $('vehicleCard'), paymentCard: $('paymentCard'),
+  menuBtn: $('menuBtn'),
+  // 추가
+  textSizeBtn: $('textSizeBtn'),
+  favoriteCard: $('favoriteCard'),
+  favFuel: $('favFuel'), favAmount: $('favAmount'), favCost: $('favCost'),
+  // 결제 확인
+  confirmOverlay: $('confirmOverlay'),
+  confirmCancel: $('confirmCancel'), confirmGo: $('confirmGo'),
+  cfFuel: $('cfFuel'), cfAmount: $('cfAmount'), cfCost: $('cfCost'),
+};
+
+const FUEL_NAMES = { gas: '휘발유', premium: '고급휘발유', diesel: '경유' };
+
+function init() {
+  let p = 0;
+  const bootMsgs = [
+    '시작하는 중...',
+    '잠시만 기다려주세요',
+    '준비 완료',
+  ];
+  let mi = 0;
+  const tick = setInterval(() => {
+    p += 1.6 + Math.random() * 1.2;
+    if (p >= 100) p = 100;
+    el.bootFill.style.width = p + '%';
+    if (p >= (mi + 1) * (100 / bootMsgs.length) && mi < bootMsgs.length - 1) {
+      mi++;
+      el.bootStatus.textContent = bootMsgs[mi];
+    }
+    if (p >= 100) {
+      clearInterval(tick);
+      setTimeout(() => el.splash.classList.add('gone'), 500);
+    }
+  }, 70);
+
+  el.modalDots.innerHTML = STAGES.map(() => '<div class="modal-dot"></div>').join('');
+
+  document.querySelectorAll('.fuel-card').forEach(b => {
+    b.addEventListener('click', () => selectFuel(b));
+  });
+  document.querySelectorAll('.preset-btn').forEach(p => {
+    p.addEventListener('click', () => setPreset(p.dataset.amt));
+  });
+  el.amountSlider.addEventListener('input', () => setAmount(parseInt(el.amountSlider.value)));
+  el.startBtn.addEventListener('click', openConfirmDialog);
+  el.modalStop.addEventListener('click', emergencyStop);
+  el.confirmCancel.addEventListener('click', closeConfirmDialog);
+  el.confirmGo.addEventListener('click', () => {
+    closeConfirmDialog();
+    startRefuel();
+  });
+
+  // tappable hints
+  el.vehicleCard.addEventListener('click', () => showToast('차량 변경 기능은 준비 중이에요'));
+  el.paymentCard.addEventListener('click', () => showToast('결제 카드 변경 기능은 준비 중이에요'));
+  el.menuBtn.addEventListener('click', () => showToast('메뉴는 곧 추가될 예정이에요'));
+
+  // 큰 글씨 토글
+  el.textSizeBtn.addEventListener('click', toggleLargeText);
+
+  // 단골 주유
+  el.favoriteCard.addEventListener('click', useFavorite);
+  updateFavoriteCard();
+
+  updateTank();
+}
+
+function toggleLargeText() {
+  state.largeText = !state.largeText;
+  document.body.classList.toggle('large-text', state.largeText);
+  showToast(state.largeText ? '큰 글씨 모드를 켰어요' : '큰 글씨 모드를 껐어요');
+}
+
+function updateFavoriteCard() {
+  const f = state.favorite;
+  const cost = f.amount * f.price;
+  el.favFuel.textContent = FUEL_NAMES[f.fuel];
+  el.favAmount.textContent = f.amount;
+  el.favCost.textContent = cost.toLocaleString();
+}
+
+function useFavorite() {
+  if (state.running) return;
+  const f = state.favorite;
+  // 연료 선택
+  document.querySelectorAll('.fuel-card').forEach(b => {
+    b.classList.toggle('active', b.dataset.fuel === f.fuel);
+  });
+  state.fuel = f.fuel;
+  state.price = f.price;
+  // 주유량
+  const max = Math.floor(state.tankCap - state.tank);
+  const v = Math.min(f.amount, max);
+  el.amountSlider.value = v;
+  setAmount(v);
+  // 다이얼로그 띄우기
+  if (state.target > 0) openConfirmDialog();
+}
+
+function openConfirmDialog() {
+  if (state.target <= 0 || state.running) return;
+  el.cfFuel.textContent = FUEL_NAMES[state.fuel];
+  el.cfAmount.textContent = state.target;
+  el.cfCost.textContent = (state.target * state.price).toLocaleString();
+  el.confirmOverlay.classList.add('show');
+}
+
+function closeConfirmDialog() {
+  el.confirmOverlay.classList.remove('show');
+}
+
+function selectFuel(btn) {
+  document.querySelectorAll('.fuel-card').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  state.fuel = btn.dataset.fuel;
+  state.price = parseInt(btn.dataset.price);
+  updateCost();
+}
+function setPreset(amt) {
+  let v = amt === 'full' ? Math.floor(state.tankCap - state.tank) : parseInt(amt);
+  setAmount(v);
+  el.amountSlider.value = v;
+}
+function setAmount(v) {
+  const max = Math.floor(state.tankCap - state.tank);
+  if (v > max) {
+    v = max;
+    el.amountSlider.value = v;
+    showToast('최대 ' + max + 'L까지 가능해요');
+  }
+  state.target = v;
+  el.amountVal.textContent = v;
+  updateCost();
+  el.startBtn.disabled = v <= 0;
+}
+function updateCost() {
+  el.costVal.textContent = (state.target * state.price).toLocaleString();
+}
+function updateTank() {
+  const pct = (state.tank / state.tankCap * 100);
+  el.tankPct.textContent = pct.toFixed(1);
+  el.tankL.textContent = state.tank.toFixed(1);
+  el.tankFill.style.width = pct + '%';
+}
+function showToast(msg) {
+  el.toast.textContent = msg;
+  el.toast.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => el.toast.classList.remove('show'), 2200);
+}
+
+function setStage(idx) {
+  const s = STAGES[idx];
+  el.modalStagePill.textContent = s.pill;
+  el.modalTitle.textContent = s.title;
+  el.modalSub.textContent = s.sub;
+  el.modal.dataset.stage = s.id;
+
+  if (s.id === 'detect') {
+    el.nozzleSvg.setAttribute('transform', 'translate(0,-40)');
+  } else if (s.id === 'align') {
+    el.nozzleSvg.setAttribute('transform', 'translate(-2,-20)');
+  } else if (s.id === 'dispense') {
+    el.nozzleSvg.setAttribute('transform', 'translate(-2,30)');
+  } else if (s.id === 'finish') {
+    el.nozzleSvg.setAttribute('transform', 'translate(0,-40)');
+  }
+
+  el.modalDots.querySelectorAll('.modal-dot').forEach((d, i) => {
+    d.classList.remove('done', 'active');
+    if (i < idx) d.classList.add('done');
+    else if (i === idx) d.classList.add('active');
+  });
+}
+
+function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function startRefuel() {
+  if (state.target <= 0 || state.running) return;
+  state.running = true; state.stopped = false;
+
+  el.modalAmount.textContent = state.target;
+  el.modalCost.textContent = (state.target * state.price).toLocaleString();
+  el.modal.classList.add('show');
+  el.modal.classList.remove('complete');
+
+  // SERVER_URL 이 설정돼 있으면 실제 기계 제어, 비어있으면 목업 시뮬레이션
+  if (SERVER_URL) {
+    await runServerRefuel();
+  } else {
+    await runMockRefuel();
+  }
+}
+
+// ───────── 실제 서버 연동 모드 ─────────
+// /start 로 주유 시작 요청 → /status 를 주기적으로 폴링해서 현재 단계 표시
+async function runServerRefuel() {
+  try {
+    const res = await fetch(SERVER_URL + '/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ liters: state.target }),
+    });
+    if (!res.ok) throw new Error('start 실패: ' + res.status);
+  } catch (e) {
+    showToast('기계 연결 실패 — 서버를 확인해주세요');
+    state.running = false;
+    closeModal();
+    return;
+  }
+
+  setStage(0);
+  // 상태 폴링 루프
+  let lastIdx = -1;
+  while (state.running && !state.stopped) {
+    await wait(400);
+    let st;
+    try {
+      const r = await fetch(SERVER_URL + '/status');
+      st = await r.json();
+    } catch (e) {
+      continue;  // 일시적 통신 오류는 무시하고 재시도
+    }
+
+    // st 예시: { phase:'dispense', dispensed:1.2, target:2.0, running:true, error:null }
+    if (st.error) {
+      showToast('오류: ' + st.error);
+      state.running = false;
+      closeModal();
+      return;
+    }
+
+    const idx = PHASE_TO_IDX[st.phase];
+    if (idx !== undefined && idx !== lastIdx) {
+      setStage(idx);
+      lastIdx = idx;
+    }
+
+    // 주유 단계면 실시간 주유량 표시
+    if (st.phase === 'dispense' && typeof st.dispensed === 'number') {
+      el.modalAmount.textContent = st.dispensed.toFixed(1);
+    }
+
+    // 완료 판정
+    if (st.phase === 'done' || st.running === false) {
+      el.modalAmount.textContent = state.target;
+      showComplete();
+      return;
+    }
+  }
+}
+
+// ───────── 목업 시뮬레이션 모드 (서버 없이 UI만 데모) ─────────
+async function runMockRefuel() {
+  setStage(0);
+  await wait(STAGE_MS.detect);
+  if (state.stopped) return;
+
+  setStage(1);
+  await wait(STAGE_MS.align);
+  if (state.stopped) return;
+
+  setStage(2);
+  const dispenseMs = (state.target / state.flowLpm) * 60 * 1000 * 0.4;
+  const t0 = performance.now();
+  await new Promise(resolve => {
+    const tick = () => {
+      if (state.stopped) { resolve(); return; }
+      const t = Math.min(1, (performance.now() - t0) / dispenseMs);
+      const dispensed = state.target * t;
+      el.modalAmount.textContent = dispensed.toFixed(1);
+      const remainingS = Math.ceil((dispenseMs - (performance.now() - t0)) / 1000);
+      if (remainingS > 0) el.modalSub.textContent = `약 ${remainingS}초 남았어요`;
+      if (t < 1) requestAnimationFrame(tick);
+      else resolve();
+    };
+    requestAnimationFrame(tick);
+  });
+  if (state.stopped) return;
+
+  setStage(3);
+  el.modalAmount.textContent = state.target;
+  await wait(STAGE_MS.finish);
+  if (state.stopped) return;
+
+  showComplete();
+}
+
+function showComplete() {
+  state.running = false;
+  state.tank += state.target;
+  updateTank();
+
+  // 단골 주유 정보 업데이트 (마지막 주유 정보 저장)
+  state.favorite = {
+    fuel: state.fuel,
+    price: state.price,
+    amount: state.target
+  };
+  updateFavoriteCard();
+
+  // 영수증 채우기
+  const total = state.target * state.price;
+  el.rcAmount.textContent = state.target;
+  el.rcPrice.textContent = state.price.toLocaleString();
+  el.rcTotal.textContent = total.toLocaleString();
+
+  el.modal.classList.add('complete');
+  el.modal.dataset.stage = 'complete';
+  el.modalStagePill.textContent = '✓ 완료';
+  el.modalStagePill.style.color = 'var(--green)';
+  el.modalTitle.textContent = '주유가 완료되었어요';
+  el.modalSub.textContent = '안전하게 출발하세요 ✨';
+  el.safetyText.textContent = '결제가 자동으로 완료되었어요. 영수증은 앱에서 확인할 수 있어요.';
+  el.modalStop.textContent = '확인';
+  el.modalStop.classList.add('confirm');
+  el.modalDots.querySelectorAll('.modal-dot').forEach(d => {
+    d.classList.remove('active'); d.classList.add('done');
+  });
+  el.modalStop.removeEventListener('click', emergencyStop);
+  el.modalStop.addEventListener('click', closeModal, { once: true });
+}
+
+function emergencyStop() {
+  if (!state.running) return;
+  state.stopped = true;
+  state.running = false;
+  el.modal.dataset.stage = 'stopped';
+  el.modalStagePill.textContent = '⚠ 정지됨';
+  el.modalStagePill.style.color = 'var(--danger)';
+  el.modalTitle.textContent = '주유를 안전하게 멈췄어요';
+  el.modalSub.textContent = '관리자에게 자동으로 알림이 전송되었어요';
+  el.safetyText.textContent = '안전을 위해 차량 안에서 잠시 기다려주세요.';
+  el.modalStop.textContent = '확인';
+  el.modalStop.classList.add('confirm');
+  el.modalStop.removeEventListener('click', emergencyStop);
+  el.modalStop.addEventListener('click', closeModal, { once: true });
+}
+
+function closeModal() {
+  el.modal.classList.remove('show', 'complete');
+  el.modalStagePill.style.color = '';
+  el.modalStop.classList.remove('confirm');
+  el.modalStop.textContent = '긴급 정지';
+  el.modalStop.addEventListener('click', emergencyStop);
+  el.amountSlider.value = 0;
+  setAmount(0);
+}
+
+init();
+</script>
+</body>
+</html>
