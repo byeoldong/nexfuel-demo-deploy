@@ -73,12 +73,13 @@
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; -webkit-font-smoothing: antialiased; }
-html, body { width: 100%; height: 100%; min-height: 100vh; min-height: 100dvh; background: #000; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; min-height: 100vh; min-height: 100svh; min-height: 100dvh; background: #000; margin: 0; padding: 0; }
 body {
   background: var(--bg-page);
   color: var(--text-1);
   font-family: var(--font);
   min-height: 100vh;
+  min-height: 100svh;
   min-height: 100dvh;
   overflow-x: hidden;
 }
@@ -87,6 +88,7 @@ body {
   width: 100%;
   max-width: 480px;
   min-height: 100vh;
+  min-height: 100svh;
   min-height: 100dvh;
   margin: 0 auto;
   background: var(--bg-page);
@@ -98,7 +100,7 @@ body {
 /* ==== SPLASH ==== */
 .splash {
   position: fixed; inset: 0; z-index: 100;
-  width: 100vw; height: 100vh; height: 100dvh;
+  width: 100vw; height: 100vh; height: 100svh; height: 100dvh;
   padding-bottom: env(safe-area-inset-bottom);
   background: linear-gradient(160deg, #0a0a0a 0%, #1a1a1c 50%, #000 100%);
   display: flex; flex-direction: column;
@@ -1330,6 +1332,9 @@ body.large-text .emergency-label { font-size: 13px; }
       <div class="payment-arrow">›</div>
     </div>
 
+    <!-- spacer: 마지막 컨텐츠와 화면 하단 사이 빈 공간 자동 채움 -->
+    <div style="flex: 1 1 auto; min-height: 80px;"></div>
+
     <!-- start -->
     <div class="start-section">
       <button class="btn-start" id="startBtn" disabled>주유 시작하기</button>
@@ -1531,7 +1536,7 @@ const PHASE_TO_IDX = { find: 0, open: 1, dispense: 2, finish: 3, done: 3 };
 // ===== 서버 연동 설정 =====
 // 라즈베리파이 Flask 서버 주소. 같은 와이파이에서 라즈베리파이 IP로 바꾸세요.
 // 예: 'http://192.168.0.42:5000'  (포트는 Flask 기본 5000)
-const SERVER_URL = '';   // 비워두면 자동으로 '목업 모드'(서버 없이 시뮬레이션)로 동작
+const SERVER_URL = '';   // 라즈베리파이 IP (핫스팟 환경). 비우면 목업 모드.
 
 const STAGE_MS = { detect: 2500, align: 2500, finish: 2000 };  // 목업 모드용 단계별 시간
 
